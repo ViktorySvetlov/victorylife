@@ -1,0 +1,14 @@
+{
+  "name": "VictoryLife",
+  "short_name": "VictoryLife",
+  "description": "Начинай побеждать! Баллы, цели, достижения и твой коуч.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#F5F5F7",
+  "theme_color": "#0B0B0F",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
