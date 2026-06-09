@@ -86,11 +86,12 @@ async function seedDefaultTasks(userId: string) {
     title: task.title,
     points_positive: task.points,
     points_negative: task.penalty,
-    is_default: false,
+    is_default: true,
     is_active: true,
   }));
 
-  await supabase.from("tasks").insert(payload);
+  const { error } = await supabase.from("tasks").insert(payload);
+  if (error) console.error("seedDefaultTasks", error.message);
 }
 
 async function seedDefaultGoals(userId: string) {
@@ -116,21 +117,36 @@ export async function getCloudTasks(): Promise<Task[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("tasks")
-    .select("id, category_key, title, points_positive, points_negative, is_default, is_active")
-    .eq("is_active", true)
+    .select("id, category_key, title, points_positive, points_negative, is_default, is_active, created_at")
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
   if (error) {
     console.error("getCloudTasks", error.message);
-    return getTasks();
+    return getTasks().length ? getTasks() : defaultTasks;
   }
 
+  // Новый пользователь после Google-входа может ещё не иметь личных задач в Supabase.
+  // В этом случае сразу создаём базовый набор, чтобы экран «Сегодня» не был пустым.
   if (!data || data.length === 0) {
     await seedDefaultTasks(userId);
-    return getCloudTasks();
+
+    const { data: seeded, error: seededError } = await supabase
+      .from("tasks")
+      .select("id, category_key, title, points_positive, points_negative, is_default, is_active, created_at")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+
+    if (seededError) console.error("getCloudTasks seeded", seededError.message);
+    if (seeded && seeded.length > 0) return (seeded as TaskRow[]).map(mapTask);
+
+    // Безопасный fallback: даже если Supabase не дал создать строки, пользователь всё равно увидит базовые задания.
+    return defaultTasks;
   }
 
-  return (data as TaskRow[]).map(mapTask);
+  const activeRows = (data as TaskRow[]).filter((row) => row.is_active !== false);
+  return activeRows.map(mapTask);
 }
 
 export async function addCloudTask(input: Omit<Task, "id" | "custom">): Promise<Task[]> {
@@ -227,7 +243,7 @@ export async function restoreDefaultCloudTasks(): Promise<Task[]> {
       title: task.title,
       points_positive: task.points,
       points_negative: task.penalty,
-      is_default: false,
+      is_default: true,
       is_active: true,
     });
 

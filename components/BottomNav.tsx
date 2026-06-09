@@ -6,13 +6,13 @@ import { BarChart3, CalendarCheck, Goal, Home, Medal, Settings, Sparkles } from 
 import clsx from "clsx";
 
 const items = [
-  { href: "/dashboard", label: "Главная", icon: Home },
-  { href: "/today", label: "Сегодня", icon: CalendarCheck },
-  { href: "/analytics", label: "Аналитика", icon: BarChart3 },
-  { href: "/goals", label: "Цели", icon: Goal },
-  { href: "/achievements", label: "Достижения", icon: Medal },
-  { href: "/coach", label: "Коуч", icon: Sparkles },
-  { href: "/settings", label: "Настройки", icon: Settings },
+  { href: "/dashboard", label: "Главная", shortLabel: "Главная", icon: Home },
+  { href: "/today", label: "Сегодня", shortLabel: "Сегодня", icon: CalendarCheck },
+  { href: "/analytics", label: "Аналитика", shortLabel: "Графики", icon: BarChart3 },
+  { href: "/goals", label: "Цели", shortLabel: "Цели", icon: Goal },
+  { href: "/achievements", label: "Достижения", shortLabel: "Награды", icon: Medal },
+  { href: "/coach", label: "Коуч", shortLabel: "Коуч", icon: Sparkles },
+  { href: "/settings", label: "Настройки", shortLabel: "Настр.", icon: Settings },
 ];
 
 export function BottomNav() {
@@ -20,18 +20,28 @@ export function BottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-3 left-3 right-3 z-40 rounded-[28px] border border-black/10 bg-white/85 p-2 shadow-soft backdrop-blur-2xl md:hidden">
-        <div className="grid grid-cols-5 gap-1">
-          {items.slice(0, 5).map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href;
-            return (
-              <Link key={item.href} href={item.href} className={clsx("flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] transition", active ? "bg-black text-white" : "text-neutral-500") }>
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+      <nav className="fixed bottom-3 left-3 right-3 z-40 md:hidden">
+        <div className="no-scrollbar overflow-x-auto rounded-[28px] border border-black/10 bg-white/90 p-2 shadow-soft backdrop-blur-2xl">
+          <div className="flex min-w-max gap-1">
+            {items.map((item) => {
+              const Icon = item.icon;
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-label={item.label}
+                  className={clsx(
+                    "flex w-[64px] flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[10px] font-bold transition active:scale-[.96]",
+                    active ? "bg-black text-white" : "text-neutral-500 hover:bg-neutral-100 hover:text-black"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="leading-none">{item.shortLabel}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </nav>
 

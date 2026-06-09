@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { CategoryIcon } from "@/components/Icon";
 import { categories } from "@/lib/defaults";
-import { getCloudGoals, getCloudLogs, getCloudTasks, upsertCloudLog } from "@/lib/cloudStore";
+import { getCloudGoals, getCloudLogs, getCloudTasks, restoreDefaultCloudTasks, upsertCloudLog } from "@/lib/cloudStore";
 import { recommendedDailyGoal, scoreDay, todayKey } from "@/lib/points";
 import { DayLog, Goal, Task, TaskStatus } from "@/lib/types";
 
@@ -43,6 +43,11 @@ export default function TodayPage() {
     setSaved(false);
   }
 
+  async function restoreTasks() {
+    const next = await restoreDefaultCloudTasks();
+    setTasks(next);
+  }
+
   async function save() {
     const next = await upsertCloudLog(currentLog, tasks);
     setLogs(next);
@@ -73,6 +78,15 @@ export default function TodayPage() {
 
       <div className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
         <div className="space-y-5">
+          {tasks.length === 0 && (
+            <div className="apple-glass rounded-[32px] p-5 text-center">
+              <p className="text-sm text-neutral-500">Заданий пока нет</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight">Верни базовый набор VictoryLife</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-neutral-500">После Google-входа стандартные задания создаются автоматически. Если список пустой, нажми кнопку ниже.</p>
+              <button onClick={restoreTasks} className="mt-4 rounded-2xl bg-black px-5 py-4 font-bold text-white transition active:scale-[.98]">Вернуть стандартные задания</button>
+            </div>
+          )}
+
           {categories.map((category) => {
             const items = tasks.filter((task) => task.category === category.key);
             return (
