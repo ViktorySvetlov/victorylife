@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { CategoryIcon } from "@/components/Icon";
 import { categories } from "@/lib/defaults";
-import { getGoals, getLogs, getTasks, upsertLog } from "@/lib/store";
+import { getCloudGoals, getCloudLogs, getCloudTasks, upsertCloudLog } from "@/lib/cloudStore";
 import { recommendedDailyGoal, scoreDay, todayKey } from "@/lib/points";
 import { DayLog, Goal, Task, TaskStatus } from "@/lib/types";
 
@@ -20,15 +20,17 @@ export default function TodayPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const t = getTasks();
-    const l = getLogs();
-    const g = getGoals();
-    const today = l.find((item) => item.date === todayKey());
-    setTasks(t);
-    setLogs(l);
-    setGoals(g);
-    setStatuses(today?.statuses || {});
-    setComment(today?.comment || "");
+    async function loadData() {
+      const [t, l, g] = await Promise.all([getCloudTasks(), getCloudLogs(), getCloudGoals()]);
+      const today = l.find((item) => item.date === todayKey());
+      setTasks(t);
+      setLogs(l);
+      setGoals(g);
+      setStatuses(today?.statuses || {});
+      setComment(today?.comment || "");
+    }
+
+    loadData();
   }, []);
 
   const currentLog: DayLog = { date: todayKey(), statuses, comment, createdAt: new Date().toISOString() };
@@ -42,7 +44,7 @@ export default function TodayPage() {
   }
 
   async function save() {
-    const next = upsertLog(currentLog);
+    const next = await upsertCloudLog(currentLog, tasks);
     setLogs(next);
     setSaved(true);
     if (score >= dailyGoal) {

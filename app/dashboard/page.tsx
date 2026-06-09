@@ -7,7 +7,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { WisdomCard } from "@/components/WisdomCard";
 import { LineChart } from "@/components/charts/LineChart";
 import { Rings } from "@/components/charts/Rings";
-import { getGoals, getLogs, getTasks } from "@/lib/store";
+import { getCloudGoals, getCloudLogs, getCloudTasks } from "@/lib/cloudStore";
 import { categoryScores, lastNDays, recommendedDailyGoal, scoreDay, seriesByDay, todayKey, totalScore, demoLogs } from "@/lib/points";
 import { DayLog, Goal, Task } from "@/lib/types";
 
@@ -17,10 +17,14 @@ export default function DashboardPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
 
   useEffect(() => {
-    const storedLogs = getLogs();
-    setTasks(getTasks());
-    setLogs(storedLogs.length ? storedLogs : demoLogs());
-    setGoals(getGoals());
+    async function loadData() {
+      const [t, storedLogs, g] = await Promise.all([getCloudTasks(), getCloudLogs(), getCloudGoals()]);
+      setTasks(t);
+      setLogs(storedLogs.length ? storedLogs : demoLogs());
+      setGoals(g);
+    }
+
+    loadData();
   }, []);
 
   const today = logs.find((log) => log.date === todayKey());

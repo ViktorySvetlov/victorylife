@@ -6,7 +6,7 @@ import { LineChart } from "@/components/charts/LineChart";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { Rings } from "@/components/charts/Rings";
 import { Heatmap } from "@/components/charts/Heatmap";
-import { getLogs, getTasks } from "@/lib/store";
+import { getCloudLogs, getCloudTasks } from "@/lib/cloudStore";
 import { categoryScores, demoLogs, lastNDays, seriesByDay } from "@/lib/points";
 import { DayLog, Task } from "@/lib/types";
 
@@ -15,9 +15,13 @@ export default function AnalyticsPage() {
   const [logs, setLogs] = useState<DayLog[]>([]);
 
   useEffect(() => {
-    const stored = getLogs();
-    setTasks(getTasks());
-    setLogs(stored.length ? stored : demoLogs());
+    async function loadData() {
+      const [t, stored] = await Promise.all([getCloudTasks(), getCloudLogs()]);
+      setTasks(t);
+      setLogs(stored.length ? stored : demoLogs());
+    }
+
+    loadData();
   }, []);
 
   const week = lastNDays(logs, 7);

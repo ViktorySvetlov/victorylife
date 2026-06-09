@@ -3,7 +3,7 @@
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { getGoals, getLogs, getTasks } from "@/lib/store";
+import { getCloudGoals, getCloudLogs, getCloudTasks } from "@/lib/cloudStore";
 import { categoryScores, lastNDays, scoreDay, todayKey } from "@/lib/points";
 import { DayLog, Goal, Task } from "@/lib/types";
 
@@ -16,9 +16,14 @@ export default function CoachPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setTasks(getTasks());
-    setLogs(getLogs());
-    setGoals(getGoals());
+    async function loadData() {
+      const [t, l, g] = await Promise.all([getCloudTasks(), getCloudLogs(), getCloudGoals()]);
+      setTasks(t);
+      setLogs(l);
+      setGoals(g);
+    }
+
+    loadData();
   }, []);
 
   const today = logs.find((log) => log.date === todayKey());

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { GoalCard } from "@/components/GoalCard";
-import { getGoals, getLogs, getTasks, saveGoals } from "@/lib/store";
+import { getCloudGoals, getCloudLogs, getCloudTasks, saveCloudGoals } from "@/lib/cloudStore";
 import { recommendedDailyGoal, totalScore } from "@/lib/points";
 import { Goal, Task, DayLog } from "@/lib/types";
 
@@ -16,24 +16,34 @@ export default function GoalsPage() {
   const [type, setType] = useState<Goal["type"]>("yearly");
 
   useEffect(() => {
-    setGoals(getGoals());
-    setTasks(getTasks());
-    setLogs(getLogs());
+    async function loadData() {
+      const [g, t, l] = await Promise.all([getCloudGoals(), getCloudTasks(), getCloudLogs()]);
+      setGoals(g);
+      setTasks(t);
+      setLogs(l);
+    }
+
+    loadData();
   }, []);
 
-  function addGoal() {
+  async function addGoal() {
     if (!title.trim()) return;
     const next: Goal[] = [...goals, { id: crypto.randomUUID(), type, title: title.trim(), target: Number(target) || 1, unit: type === "daily" ? "points" : "rub" }];
     setGoals(next);
-    saveGoals(next);
+    const saved = await saveCloudGoals(next);
+    setGoals(saved);
     setTitle("");
   }
 
-  function autoDailyGoal() {
+  async function autoDailyGoal() {
     const value = recommendedDailyGoal(logs, tasks);
-    const next = goals.map((goal) => goal.type === "daily" ? { ...goal, target: value, title: `Цель дня: ${value} баллов` } : goal);
+    const hasDailyGoal = goals.some((goal) => goal.type === "daily");
+    const next: Goal[] = hasDailyGoal
+      ? goals.map((goal) => goal.type === "daily" ? { ...goal, target: value, title: `Цель дня: ${value} баллов` } : goal)
+      : [...goals, { id: crypto.randomUUID(), type: "daily", title: `Цель дня: ${value} баллов`, target: value, unit: "points" }];
     setGoals(next);
-    saveGoals(next);
+    const saved = await saveCloudGoals(next);
+    setGoals(saved);
   }
 
   const allPoints = totalScore(logs, tasks);

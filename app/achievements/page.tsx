@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { achievements } from "@/lib/defaults";
-import { getLogs, getTasks } from "@/lib/store";
+import { getCloudLogs, getCloudTasks, syncCloudAchievements } from "@/lib/cloudStore";
 import { getUnlockedAchievements } from "@/lib/points";
 import { Achievement, DayLog, Task } from "@/lib/types";
 
@@ -13,9 +13,14 @@ export default function AchievementsPage() {
   const [unlocked, setUnlocked] = useState<Achievement[]>([]);
 
   useEffect(() => {
-    const tasks = getTasks();
-    const logs = getLogs();
-    setUnlocked(getUnlockedAchievements(logs, tasks));
+    async function loadData() {
+      const [tasks, logs] = await Promise.all([getCloudTasks(), getCloudLogs()]);
+      const openAchievements = getUnlockedAchievements(logs, tasks);
+      setUnlocked(openAchievements);
+      await syncCloudAchievements(openAchievements);
+    }
+
+    loadData();
   }, []);
 
   const unlockedCodes = new Set(unlocked.map((item) => item.code));
