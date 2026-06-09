@@ -18,13 +18,28 @@ export default function SettingsPage() {
   const [filter, setFilter] = useState<CategoryKey | "all">("all");
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+
+  async function loadTasks() {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const items = await getCloudTasks();
+      setTasks(items);
+      if (items.length === 0) setMessage("Заданий пока нет. Верни стандартные или добавь своё.");
+    } catch (error) {
+      console.error("settings loadTasks", error);
+      setMessage("Не получилось загрузить задания. Попробуй обновить страницу или вернуть стандартные.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    getCloudTasks().then((items) => {
-      setTasks(items);
-      setLoading(false);
-    });
+    loadTasks();
   }, []);
 
   const visibleTasks = useMemo(() => {
@@ -32,43 +47,76 @@ export default function SettingsPage() {
   }, [filter, tasks]);
 
   async function addTask() {
-    if (!title.trim()) return;
-    const next = await addCloudTask({
-      category,
-      title: title.trim(),
-      points: Number(points) || 0,
-      penalty: Number(penalty) || 0,
-    });
-    setTasks(next);
-    setTitle("");
+    if (!title.trim() || adding) return;
+
+    setAdding(true);
+    setMessage("");
+
+    try {
+      const next = await addCloudTask({
+        category,
+        title: title.trim(),
+        points: Number(points) || 0,
+        penalty: Number(penalty) || 0,
+      });
+      setTasks(next);
+      setTitle("");
+      setMessage("Задание добавлено.");
+    } catch (error) {
+      console.error("settings addTask", error);
+      setMessage("Не получилось добавить задание. Попробуй ещё раз.");
+    } finally {
+      setAdding(false);
+    }
   }
 
   async function removeTask(task: Task) {
-    const ok = window.confirm(`Убрать задание «${task.title}» из твоего списка? Оно исчезнет из ежедневной отметки.`);
-    if (!ok) return;
+    const ok = window.confirm(`Убрать задание «${task.title}» из твоего списка?`);
+    if (!ok || removingId) return;
 
     setRemovingId(task.id);
-    const next = await removeCloudTask(task.id);
-    setTasks(next);
-    setRemovingId(null);
+    setMessage("");
+
+    try {
+      const next = await removeCloudTask(task.id);
+      setTasks(next);
+      setMessage("Задание убрано.");
+    } catch (error) {
+      console.error("settings removeTask", error);
+      setMessage("Не получилось убрать задание. Попробуй ещё раз.");
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   async function restoreDefaults() {
+    if (restoring) return;
+
     setRestoring(true);
-    const next = await restoreDefaultCloudTasks();
-    setTasks(next);
-    setRestoring(false);
+    setMessage("");
+
+    try {
+      const next = await restoreDefaultCloudTasks();
+      setTasks(next);
+      setMessage("Стандартные задания возвращены.");
+    } catch (error) {
+      console.error("settings restoreDefaults", error);
+      setMessage("Не получилось вернуть стандартные задания. Попробуй обновить страницу.");
+    } finally {
+      setRestoring(false);
+    }
   }
 
   async function reset() {
     const ok = window.confirm("Сбросить демо? Это удалит отметки дней, цели, достижения и вернёт стандартные задания.");
     if (!ok) return;
     await resetVictoryLifeData();
-    location.reload();
+    await loadTasks();
+    setMessage("Демо сброшено.");
   }
 
   return (
-    <AppShell title="Настройки" subtitle="Добавляй свои действия, убирай лишнее и оставляй только те задачи, которые реально подходят твоей жизни.">
+    <AppShell title="Настройки" subtitle="Добавляй свои действия и убирай лишнее, чтобы ежедневный список был только под тебя.">
       <div className="grid min-w-0 gap-5 xl:grid-cols-[.92fr_1.08fr]">
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="apple-glass min-w-0 rounded-[30px] p-4 sm:rounded-[36px] sm:p-6">
           <div className="flex items-center gap-3">
@@ -88,12 +136,9 @@ export default function SettingsPage() {
               <input value={points} onChange={(e) => setPoints(e.target.value)} inputMode="numeric" placeholder="+ баллы" className="w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0A84FF]" />
               <input value={penalty} onChange={(e) => setPenalty(e.target.value)} inputMode="numeric" placeholder="- баллы" className="w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0A84FF]" />
             </div>
-            <button onClick={addTask} className="w-full rounded-2xl bg-black px-5 py-4 font-bold text-white transition active:scale-[.98]">Добавить задание</button>
-          </div>
-
-          <div className="mt-5 rounded-[26px] bg-white p-4 text-sm text-neutral-500">
-            <p className="font-bold text-black">Как работает удаление</p>
-            <p className="mt-1 leading-6">Любое стандартное или своё задание можно убрать. В Supabase оно скрывается, а не стирается жёстко, чтобы история отметок не ломалась.</p>
+            <button onClick={addTask} disabled={adding || !title.trim()} className="w-full rounded-2xl bg-black px-5 py-4 font-bold text-white transition active:scale-[.98] disabled:opacity-50">
+              {adding ? "Добавляю..." : "Добавить задание"}
+            </button>
           </div>
         </motion.section>
 
@@ -104,16 +149,22 @@ export default function SettingsPage() {
               <h2 className="text-2xl font-black tracking-tight">{loading ? "Загружаю..." : `${visibleTasks.length} из ${tasks.length}`}</h2>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-              <button onClick={restoreDefaults} disabled={restoring} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold transition active:scale-[.98] disabled:opacity-60">
+              <button onClick={restoreDefaults} disabled={restoring || loading} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold transition active:scale-[.98] disabled:opacity-60">
                 <RotateCcw className="h-4 w-4" />
                 {restoring ? "Возвращаю..." : "Вернуть стандартные"}
               </button>
-              <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-bold transition active:scale-[.98]">
+              <button onClick={reset} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-bold transition active:scale-[.98] disabled:opacity-60">
                 <Trash2 className="h-4 w-4" />
                 Сбросить демо
               </button>
             </div>
           </div>
+
+          {message && (
+            <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-700">
+              {message}
+            </div>
+          )}
 
           <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
             <button onClick={() => setFilter("all")} className={`shrink-0 rounded-2xl px-4 py-2 text-sm font-bold ${filter === "all" ? "bg-black text-white" : "bg-white"}`}>Все</button>
@@ -126,13 +177,19 @@ export default function SettingsPage() {
           </div>
 
           <div className="mt-5 space-y-2 overflow-visible pr-0 md:max-h-[620px] md:overflow-y-auto md:pr-1">
+            {loading && (
+              <div className="rounded-[24px] bg-white p-5 text-center text-sm leading-6 text-neutral-500">
+                Загружаю задания...
+              </div>
+            )}
+
             {!loading && visibleTasks.length === 0 && (
               <div className="rounded-[24px] bg-white p-5 text-center text-sm leading-6 text-neutral-500">
                 Заданий пока нет. Нажми «Вернуть стандартные» или добавь своё задание.
               </div>
             )}
 
-            {visibleTasks.map((task) => (
+            {!loading && visibleTasks.map((task) => (
               <div key={task.id} className="flex min-w-0 flex-col gap-3 rounded-2xl bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="break-words font-bold leading-5">{task.title}</p>
